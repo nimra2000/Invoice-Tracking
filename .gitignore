@@ -1,0 +1,5 @@
+node_modules/
+coach.db
+coach.json
+server/.env
+dist/
