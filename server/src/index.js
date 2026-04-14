@@ -2,7 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const path = require('path');
+const { Pool } = require('pg');
 
 const studentsRouter = require('./routes/students');
 const lessonsRouter = require('./routes/lessons');
@@ -20,6 +22,13 @@ if (process.env.NODE_ENV !== 'production') {
 
 app.use(express.json());
 app.use(session({
+  store: new pgSession({
+    pool: new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    }),
+    createTableIfMissing: true,
+  }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -31,10 +40,8 @@ app.use(session({
   },
 }));
 
-// Auth (no login required)
 app.use('/auth', authRouter);
 
-// Protect all /api routes
 app.use('/api', (req, res, next) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not logged in' });
   next();
@@ -45,12 +52,15 @@ app.use('/api/lessons', lessonsRouter);
 app.use('/api/invoices', invoicesRouter);
 app.use('/api/profile', profileRouter);
 
-// Serve built frontend in production
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '../../client/dist');
   app.use(express.static(clientDist));
   app.get('*', (req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }
 
-const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app;
+
+if (require.main === module) {
+  const PORT = process.env.PORT || 3002;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}

@@ -143,21 +143,23 @@ function parseInvoiceOptions(query) {
   };
 }
 
-router.get('/history', (req, res) => {
-  const { student_id } = req.query;
-  res.json(db.getInvoiceRecords(req.session.user.email, student_id));
+router.get('/history', async (req, res) => {
+  try {
+    const { student_id } = req.query;
+    res.json(await db.getInvoiceRecords(req.session.user.email, student_id));
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/preview', async (req, res) => {
   const { student_id, month } = req.query;
-  const student = db.getStudent(student_id, req.session.user.email);
+  const student = await db.getStudent(student_id, req.session.user.email);
   if (!student) return res.status(404).json({ error: 'Student not found' });
 
-  const lessons = db.getLessons(req.session.user.email, { student_id, month }).sort((a, b) => a.date.localeCompare(b.date));
+  const lessons = (await db.getLessons(req.session.user.email, { student_id, month })).sort((a, b) => a.date.localeCompare(b.date));
   if (lessons.length === 0) return res.status(400).json({ error: 'No lessons found for this period' });
 
   const options = parseInvoiceOptions(req.query);
-  const profile = db.getProfile(req.session.user.email) || {};
+  const profile = await db.getProfile(req.session.user.email) || {};
   const pdfBuffer = await buildInvoicePDF(student, lessons, month, options, profile);
   res.set({
     'Content-Type': 'application/pdf',
@@ -171,13 +173,13 @@ router.post('/send', async (req, res) => {
     const { student_id, month, apply_hst, balance, custom_charges } = req.body;
     const options = { apply_hst, balance: Number(balance || 0), custom_charges: custom_charges || [] };
 
-    const student = db.getStudent(student_id, req.session.user.email);
+    const student = await db.getStudent(student_id, req.session.user.email);
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
-    const lessons = db.getLessons(req.session.user.email, { student_id, month }).sort((a, b) => a.date.localeCompare(b.date));
+    const lessons = (await db.getLessons(req.session.user.email, { student_id, month })).sort((a, b) => a.date.localeCompare(b.date));
     if (lessons.length === 0) return res.status(400).json({ error: 'No lessons found for this period' });
 
-    const profile = db.getProfile(req.session.user.email) || {};
+    const profile = await db.getProfile(req.session.user.email) || {};
     const pdfBuffer = await buildInvoicePDF(student, lessons, month, options, profile);
 
     const [year, mon] = month.split('-');
@@ -201,7 +203,7 @@ router.post('/send', async (req, res) => {
       `invoice-${student.name}-${month}.pdf`
     );
 
-    db.addInvoiceRecord(req.session.user.email, {
+    await db.addInvoiceRecord(req.session.user.email, {
       student_id: Number(student_id),
       student_name: student.name,
       month,

@@ -7,12 +7,14 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
     "express-session": "^1.19.0",
     "googleapis": "^171.4.0",
     "nodemailer": "^6.9.9",
+    "pg": "^8.11.3",
     "pdfkit": "^0.14.0"
   },
   "devDependencies": {
