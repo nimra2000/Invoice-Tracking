@@ -10,8 +10,8 @@ router.get('/', async (req, res) => {
 
 router.put('/', async (req, res) => {
   try {
-    const { name, email, address, phone } = req.body;
-    res.json(await db.setProfile(req.session.user.email, { name, email, address, phone }));
+    const { name, email, address, phone, email_template } = req.body;
+    res.json(await db.setProfile(req.session.user.email, { name, email, address, phone, email_template }));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

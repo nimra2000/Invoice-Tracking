@@ -184,12 +184,6 @@ export default function StudentEdit() {
             >
               {e.settled ? '✓' : 'Settle'}
             </button>
-            <button
-              onClick={() => handleDeleteEntry(e.id)}
-              style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 18, cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}
-            >
-              ×
-            </button>
           </div>
         ))}
       </div>

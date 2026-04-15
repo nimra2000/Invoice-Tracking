@@ -13,6 +13,7 @@ export default function Invoices() {
   const [applyHst, setApplyHst] = useState(false);
   const [balance, setBalance] = useState('');
   const [customCharges, setCustomCharges] = useState([]);
+  const [applyBalance, setApplyBalance] = useState(false);
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState(null);
   const [editingLesson, setEditingLesson] = useState(null);
@@ -44,6 +45,7 @@ export default function Invoices() {
           .filter((e) => !e.settled)
           .reduce((s, e) => s + e.amount, 0);
         setBalance(outstanding || '');
+        setApplyBalance(outstanding !== 0);
       });
   }, [selectedStudent]);
 
@@ -62,6 +64,7 @@ export default function Invoices() {
     setSelectedStudent(id);
     setStudent(s);
     setBalance('');
+    setApplyBalance(false);
     setStatus(null);
   };
 
@@ -72,7 +75,7 @@ export default function Invoices() {
   const subtotal = lessons.reduce((sum, l) => sum + perStudentAmount(l), 0);
   const customTotal = customCharges.reduce((sum, c) => sum + Number(c.amount || 0), 0);
   const hstAmount = applyHst ? (subtotal + customTotal) * HST_RATE : 0;
-  const balanceNum = Number(balance || 0);
+  const balanceNum = applyBalance ? Number(balance || 0) : 0;
   const total = subtotal + customTotal + hstAmount + balanceNum;
 
   const addCustomCharge = () => setCustomCharges((c) => [...c, { description: '', amount: '' }]);
@@ -220,13 +223,22 @@ export default function Invoices() {
             />
           </div>
 
-          {/* Previous Balance (read from student) */}
-          {balanceNum !== 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderTop: '1px solid #e5e7eb', marginBottom: 4, fontSize: 14, color: '#374151' }}>
-              <span>Previous Balance</span>
-              <span style={{ color: balanceNum < 0 ? '#15803d' : '#dc2626', fontWeight: 500 }}>
-                {balanceNum < 0 ? `-$${Math.abs(balanceNum).toFixed(2)}` : `$${balanceNum.toFixed(2)}`}
-              </span>
+          {/* Previous Balance toggle */}
+          {Number(balance || 0) !== 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderTop: '1px solid #e5e7eb' }}>
+              <label style={{ fontWeight: 500, fontSize: 15, cursor: 'pointer' }} htmlFor="balance-toggle">
+                Apply Outstanding Balance&nbsp;
+                <span style={{ color: Number(balance) < 0 ? '#15803d' : '#dc2626', fontWeight: 600 }}>
+                  ({Number(balance) < 0 ? `-$${Math.abs(Number(balance)).toFixed(2)}` : `$${Number(balance).toFixed(2)}`})
+                </span>
+              </label>
+              <input
+                id="balance-toggle"
+                type="checkbox"
+                checked={applyBalance}
+                onChange={(e) => setApplyBalance(e.target.checked)}
+                style={{ width: 20, height: 20, cursor: 'pointer' }}
+              />
             </div>
           )}
 

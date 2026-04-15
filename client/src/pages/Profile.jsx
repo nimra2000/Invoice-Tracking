@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 
 export default function Profile() {
-  const [form, setForm] = useState({ name: '', address: '', phone: '', email: '' });
+  const DEFAULT_TEMPLATE = 'Hi {name},\n\nPlease find attached your invoice for {month}.\n\nTotal Amount Due: ${total}\n\nThank you!';
+  const [form, setForm] = useState({ name: '', address: '', phone: '', email: '', email_template: '' });
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -14,6 +15,7 @@ export default function Profile() {
         address: profile?.address || '',
         phone: profile?.phone || '',
         email: profile?.email || user?.email || '',
+        email_template: profile?.email_template || '',
       });
     }).catch(() => {
       fetch('/auth/me', { credentials: 'include' }).then((r) => r.json()).then((user) => {
@@ -64,6 +66,19 @@ export default function Profile() {
         <div className="form-group">
           <label>Phone Number</label>
           <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="(416) 555-0100" />
+        </div>
+        <div className="form-group">
+          <label>Invoice Email Message</label>
+          <textarea
+            rows={6}
+            value={form.email_template}
+            onChange={(e) => set('email_template', e.target.value)}
+            placeholder={DEFAULT_TEMPLATE}
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }}
+          />
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+            Use <strong>{'{name}'}</strong>, <strong>{'{month}'}</strong>, <strong>{'{total}'}</strong> as placeholders.
+          </div>
         </div>
         <button className="btn btn-primary" type="submit">Save Profile</button>
       </form>

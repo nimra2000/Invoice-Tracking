@@ -193,12 +193,19 @@ router.post('/send', async (req, res) => {
     const hstAmount = apply_hst ? (subtotal + customTotal) * HST_RATE : 0;
     const total = subtotal + customTotal + hstAmount + options.balance;
 
+    const DEFAULT_TEMPLATE = 'Hi {name},\n\nPlease find attached your invoice for {month}.\n\nTotal Amount Due: ${total}\n\nThank you!';
+    const template = profile.email_template || DEFAULT_TEMPLATE;
+    const emailBody = template
+      .replace(/{name}/g, student.name)
+      .replace(/{month}/g, monthLabel)
+      .replace(/{total}/g, total.toFixed(2));
+
     await sendViaGmailAPI(
       req.session.tokens,
       req.session.user.email,
       student.email,
       `Invoice for ${monthLabel}`,
-      `Hi ${student.name},\n\nPlease find attached your invoice for ${monthLabel}.\n\nTotal Amount Due: $${total.toFixed(2)}\n\nThank you!`,
+      emailBody,
       pdfBuffer,
       `invoice-${student.name}-${month}.pdf`
     );
