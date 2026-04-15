@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: { rejectUnauthorized: false },
   max: 2,
 });
 
@@ -110,7 +110,7 @@ const db = {
     const idx = data.students.findIndex((s) => s.id === Number(studentId) && s.owner_email === owner_email);
     if (idx === -1) return null;
     const entries = data.students[idx].balance_entries || [];
-    const eIdx = entries.findIndex((e) => e.id === Number(entryId));
+    const eIdx = entries.findIndex((e) => String(e.id) === String(entryId));
     if (eIdx === -1) return null;
     entries[eIdx] = { ...entries[eIdx], ...updates };
     data.students[idx].balance_entries = entries;

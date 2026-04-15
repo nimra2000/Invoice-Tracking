@@ -88,7 +88,6 @@ export default function StudentEdit() {
           <label>Email</label>
           <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} required />
         </div>
-        <button className="btn btn-primary" type="submit">Save Changes</button>
       </form>
 
       {/* Balance Ledger */}
@@ -184,6 +183,12 @@ export default function StudentEdit() {
             >
               {e.settled ? '✓' : 'Settle'}
             </button>
+            <button
+              onClick={() => handleDeleteEntry(e.id)}
+              style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 18, cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>
@@ -209,7 +214,8 @@ export default function StudentEdit() {
         </div>
       )}
 
-      <button className="btn btn-danger" style={{ marginTop: 24 }} onClick={handleDelete}>
+      <button className="btn btn-primary" style={{ marginTop: 24 }} onClick={handleSubmit}>Save Changes</button>
+      <button className="btn btn-danger" style={{ marginTop: 10 }} onClick={handleDelete}>
         Delete Student
       </button>
     </div>
