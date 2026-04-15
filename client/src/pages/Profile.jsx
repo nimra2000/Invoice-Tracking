@@ -15,7 +15,7 @@ export default function Profile() {
         address: profile?.address || '',
         phone: profile?.phone || '',
         email: profile?.email || user?.email || '',
-        email_template: profile?.email_template || '',
+        email_template: profile?.email_template || DEFAULT_TEMPLATE,
       });
     }).catch(() => {
       fetch('/auth/me', { credentials: 'include' }).then((r) => r.json()).then((user) => {
@@ -73,14 +73,14 @@ export default function Profile() {
             rows={6}
             value={form.email_template}
             onChange={(e) => set('email_template', e.target.value)}
-            placeholder={DEFAULT_TEMPLATE}
+            placeholder=""
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }}
           />
           <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
             Use <strong>{'{name}'}</strong>, <strong>{'{month}'}</strong>, <strong>{'{total}'}</strong> as placeholders.
           </div>
         </div>
-        <button className="btn btn-primary" type="submit">Save Profile</button>
+        <button className="btn btn-primary" type="submit">{saved ? 'Saved!' : 'Save Profile'}</button>
       </form>
     </div>
   );
