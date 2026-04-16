@@ -37,8 +37,7 @@ function buildInvoicePDF(student, lessons, month, { apply_hst, balance, custom_c
 
     // Billed to + period
     doc.fontSize(10).font('Helvetica-Bold').text('BILLED TO', 50, doc.y);
-    doc.fontSize(11).font('Helvetica').text(student.name);
-    doc.text(student.email);
+    doc.fontSize(11).font('Helvetica').text(student.billing_name || student.name);
     doc.moveDown(0.3);
     doc.fontSize(10).font('Helvetica-Bold').text('PERIOD');
     doc.fontSize(11).font('Helvetica').text(monthLabel);
@@ -61,20 +60,39 @@ function buildInvoicePDF(student, lessons, month, { apply_hst, balance, custom_c
     doc.font('Helvetica').fontSize(11);
     let subtotal = 0;
     for (const lesson of lessons) {
-      const numStudents = lesson.num_students || 1;
-      const perStudentRate = lesson.rate_per_hour / numStudents;
-      const duration_mins = lesson.duration_mins || Math.round((lesson.duration_hours || 1) * 60);
-      const amount = (duration_mins / 60) * perStudentRate;
+      const isHourly = !lesson.billing_type || lesson.billing_type === 'hourly';
+      let amount, typeLabel, durationLabel, rateLabel;
+      if (isHourly) {
+        const numStudents = lesson.num_students || 1;
+        const perStudentRate = lesson.rate_per_hour / numStudents;
+        const duration_mins = lesson.duration_mins || Math.round((lesson.duration_hours || 1) * 60);
+        amount = (duration_mins / 60) * perStudentRate;
+        typeLabel = { private: 'Private', semi_private: 'Semi-Private', group: 'Group' }[lesson.type] || lesson.type;
+        durationLabel = duration_mins < 60 ? `${duration_mins} min` : duration_mins % 60 === 0 ? `${duration_mins / 60}h` : `${Math.floor(duration_mins / 60)}h ${duration_mins % 60}min`;
+        rateLabel = `$${perStudentRate.toFixed(2)}`;
+      } else {
+        amount = Number(lesson.flat_amount || 0);
+        typeLabel = lesson.billing_type === 'competition_fee' ? 'Competition Fee'
+          : lesson.billing_type === 'choreography' ? 'Choreography'
+          : lesson.billing_type === 'flat_fee' ? 'Flat Fee'
+          : lesson.custom_label || 'Custom';
+        durationLabel = '—';
+        rateLabel = '—';
+      }
       subtotal += amount;
       const y = doc.y;
-      const typeLabel = { private: 'Private', semi_private: 'Semi-Private', group: 'Group' }[lesson.type] || lesson.type;
-      const durationLabel = duration_mins < 60 ? `${duration_mins} min` : duration_mins % 60 === 0 ? `${duration_mins / 60}h` : `${Math.floor(duration_mins / 60)}h ${duration_mins % 60}min`;
       doc.text(lesson.date, col.date, y);
       doc.text(typeLabel, col.type, y);
       doc.text(durationLabel, col.duration, y);
-      doc.text(`$${perStudentRate.toFixed(2)}`, col.rate, y);
+      doc.text(rateLabel, col.rate, y);
       doc.text(`$${amount.toFixed(2)}`, col.amount, y);
       doc.moveDown(0.6);
+      if (lesson.notes) {
+        doc.font('Helvetica-Oblique').fontSize(9).fillColor('#6b7280')
+          .text(lesson.notes, col.type, doc.y, { width: 380 });
+        doc.fillColor('#000000').font('Helvetica').fontSize(11);
+        doc.moveDown(0.4);
+      }
     }
 
     doc.moveDown(0.2);
@@ -155,7 +173,9 @@ router.get('/preview', async (req, res) => {
   const student = await db.getStudent(student_id, req.session.user.email);
   if (!student) return res.status(404).json({ error: 'Student not found' });
 
-  const lessons = (await db.getLessons(req.session.user.email, { student_id, month })).sort((a, b) => a.date.localeCompare(b.date));
+  const scheduledLessons = req.query.scheduled_lessons ? JSON.parse(req.query.scheduled_lessons) : [];
+  const dbLessons = await db.getLessons(req.session.user.email, { student_id, month });
+  const lessons = [...scheduledLessons, ...dbLessons].sort((a, b) => a.date.localeCompare(b.date));
   if (lessons.length === 0) return res.status(400).json({ error: 'No lessons found for this period' });
 
   const options = parseInvoiceOptions(req.query);
@@ -176,7 +196,9 @@ router.post('/send', async (req, res) => {
     const student = await db.getStudent(student_id, req.session.user.email);
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
-    const lessons = (await db.getLessons(req.session.user.email, { student_id, month })).sort((a, b) => a.date.localeCompare(b.date));
+    const dbLessons = await db.getLessons(req.session.user.email, { student_id, month });
+    const scheduledLessons = req.body.scheduled_lessons || [];
+    const lessons = [...scheduledLessons, ...dbLessons].sort((a, b) => a.date.localeCompare(b.date));
     if (lessons.length === 0) return res.status(400).json({ error: 'No lessons found for this period' });
 
     const profile = await db.getProfile(req.session.user.email) || {};
@@ -186,8 +208,11 @@ router.post('/send', async (req, res) => {
     const monthLabel = new Date(year, mon - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
     const subtotal = lessons.reduce((sum, l) => {
-      const duration_mins = l.duration_mins || Math.round((l.duration_hours || 1) * 60);
-      return sum + (duration_mins / 60) * (l.rate_per_hour / (l.num_students || 1));
+      if (!l.billing_type || l.billing_type === 'hourly') {
+        const duration_mins = l.duration_mins || Math.round((l.duration_hours || 1) * 60);
+        return sum + (duration_mins / 60) * (l.rate_per_hour / (l.num_students || 1));
+      }
+      return sum + Number(l.flat_amount || 0);
     }, 0);
     const customTotal = options.custom_charges.reduce((s, c) => s + Number(c.amount || 0), 0);
     const hstAmount = apply_hst ? (subtotal + customTotal) * HST_RATE : 0;

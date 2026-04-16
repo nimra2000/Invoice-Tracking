@@ -18,15 +18,15 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, email } = req.body;
-    res.json(await db.addStudent(req.session.user.email, { name, email }));
+    const { name, email, billing_name } = req.body;
+    res.json(await db.addStudent(req.session.user.email, { name, email, billing_name: billing_name || '' }));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.put('/:id', async (req, res) => {
   try {
-    const { name, email } = req.body;
-    const updated = await db.updateStudent(req.params.id, req.session.user.email, { name, email });
+    const { name, email, billing_name } = req.body;
+    const updated = await db.updateStudent(req.params.id, req.session.user.email, { name, email, billing_name: billing_name || '' });
     if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json(updated);
   } catch (e) { res.status(500).json({ error: e.message }); }

@@ -21,21 +21,36 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { student_id, date, type, duration_mins, rate_per_hour, num_students } = req.body;
+    const { student_id, date, start_time, type, duration_mins, rate_per_hour, num_students, billing_type, flat_amount, custom_label, notes } = req.body;
     res.json(await db.addLesson(req.session.user.email, {
-      student_id: Number(student_id), date, type,
-      duration_mins: Number(duration_mins), rate_per_hour: Number(rate_per_hour),
+      student_id: Number(student_id), date,
+      start_time: start_time || null,
+      type,
+      billing_type: billing_type || 'hourly',
+      duration_mins: duration_mins != null ? Number(duration_mins) : null,
+      rate_per_hour: rate_per_hour != null ? Number(rate_per_hour) : null,
       num_students: Number(num_students || 1),
+      flat_amount: flat_amount != null ? Number(flat_amount) : null,
+      custom_label: custom_label || null,
+      notes: notes || null,
     }));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.put('/:id', async (req, res) => {
   try {
-    const { date, type, duration_mins, rate_per_hour, num_students } = req.body;
+    const { date, start_time, type, duration_mins, rate_per_hour, num_students, billing_type, flat_amount, custom_label, notes } = req.body;
     const updated = await db.updateLesson(req.params.id, req.session.user.email, {
-      date, type, duration_mins: Number(duration_mins), rate_per_hour: Number(rate_per_hour),
+      date,
+      start_time: start_time || null,
+      type,
+      billing_type: billing_type || 'hourly',
+      duration_mins: duration_mins != null ? Number(duration_mins) : null,
+      rate_per_hour: rate_per_hour != null ? Number(rate_per_hour) : null,
       num_students: Number(num_students || 1),
+      flat_amount: flat_amount != null ? Number(flat_amount) : null,
+      custom_label: custom_label || null,
+      notes: notes || null,
     });
     if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json(updated);

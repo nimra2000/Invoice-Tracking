@@ -77,7 +77,7 @@ export default function Profile() {
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }}
           />
           <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-            Use <strong>{'{name}'}</strong>, <strong>{'{month}'}</strong>, <strong>{'{total}'}</strong> as placeholders.
+            When the invoice is sent, <strong>{'{name}'}</strong> is automatically replaced with the student's name, <strong>{'{month}'}</strong> with the invoice month, and <strong>{'{total}'}</strong> with the total amount due.
           </div>
         </div>
         <button className="btn btn-primary" type="submit">{saved ? 'Saved!' : 'Save Profile'}</button>

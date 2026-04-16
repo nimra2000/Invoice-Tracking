@@ -10,6 +10,8 @@ const studentsRouter = require('./routes/students');
 const lessonsRouter = require('./routes/lessons');
 const invoicesRouter = require('./routes/invoices');
 const profileRouter = require('./routes/profile');
+const schedulesRouter = require('./routes/schedules');
+const eventsRouter = require('./routes/events');
 const { router: authRouter } = require('./routes/auth');
 
 const app = express();
@@ -51,6 +53,8 @@ app.use('/api/students', studentsRouter);
 app.use('/api/lessons', lessonsRouter);
 app.use('/api/invoices', invoicesRouter);
 app.use('/api/profile', profileRouter);
+app.use('/api/schedules', schedulesRouter);
+app.use('/api/events', eventsRouter);
 
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '../../client/dist');

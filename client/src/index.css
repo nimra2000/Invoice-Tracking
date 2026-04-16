@@ -1,4 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Prevent global reset from breaking FullCalendar's internal spacing */
+.fc button { padding: revert; }
+.fc table { border-collapse: revert; border-spacing: revert; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

@@ -6,25 +6,34 @@ const pool = new Pool({
   max: 2,
 });
 
-let cache = null;
+let tableEnsured = false;
 
 async function load() {
-  if (cache) return cache;
-  await pool.query(`CREATE TABLE IF NOT EXISTS store (id INT PRIMARY KEY, data JSONB NOT NULL)`);
+  if (!tableEnsured) {
+    await pool.query(`CREATE TABLE IF NOT EXISTS store (id INT PRIMARY KEY, data JSONB NOT NULL)`);
+    tableEnsured = true;
+  }
   const res = await pool.query('SELECT data FROM store WHERE id = 1');
   if (res.rows.length === 0) {
-    cache = { students: [], lessons: [], profiles: {}, invoice_records: [], nextStudentId: 1, nextLessonId: 1 };
-    await pool.query('INSERT INTO store (id, data) VALUES (1, $1)', [JSON.stringify(cache)]);
-  } else {
-    cache = res.rows[0].data;
-    if (!cache.profiles) cache.profiles = {};
-    if (!cache.invoice_records) cache.invoice_records = [];
+    const fresh = { students: [], lessons: [], profiles: {}, invoice_records: [], nextStudentId: 1, nextLessonId: 1 };
+    await pool.query('INSERT INTO store (id, data) VALUES (1, $1)', [JSON.stringify(fresh)]);
+    return fresh;
   }
-  return cache;
+  const data = res.rows[0].data;
+  if (!data.profiles) data.profiles = {};
+  if (!data.invoice_records) data.invoice_records = [];
+  if (!data.schedules) data.schedules = [];
+  if (!data.schedule_exceptions) data.schedule_exceptions = [];
+  if (!data.nextScheduleId) data.nextScheduleId = 1;
+  if (!data.nextExceptionId) data.nextExceptionId = 1;
+  if (!data.events) data.events = [];
+  if (!data.event_exceptions) data.event_exceptions = [];
+  if (!data.nextEventId) data.nextEventId = 1;
+  if (!data.nextEventExceptionId) data.nextEventExceptionId = 1;
+  return data;
 }
 
 async function save(data) {
-  cache = data;
   await pool.query('UPDATE store SET data = $1 WHERE id = 1', [JSON.stringify(data)]);
 }
 
@@ -139,6 +148,114 @@ const db = {
     const records = data.invoice_records.filter((r) => r.owner_email === owner_email);
     const filtered = student_id ? records.filter((r) => r.student_id === Number(student_id)) : records;
     return filtered.sort((a, b) => b.sent_at.localeCompare(a.sent_at));
+  },
+
+  // Recurring Schedules
+  async getSchedules(owner_email, student_id) {
+    const data = await load();
+    let s = data.schedules.filter((s) => s.owner_email === owner_email);
+    if (student_id) s = s.filter((s) => s.student_id === Number(student_id));
+    return s;
+  },
+  async addSchedule(owner_email, schedule) {
+    const data = await load();
+    const s = { ...schedule, owner_email, id: data.nextScheduleId++ };
+    data.schedules.push(s);
+    await save(data);
+    return s;
+  },
+  async updateSchedule(id, owner_email, updates) {
+    const data = await load();
+    const idx = data.schedules.findIndex((s) => s.id === Number(id) && s.owner_email === owner_email);
+    if (idx === -1) return null;
+    data.schedules[idx] = { ...data.schedules[idx], ...updates, id: Number(id), owner_email };
+    await save(data);
+    return data.schedules[idx];
+  },
+  async deleteSchedule(id, owner_email) {
+    const data = await load();
+    data.schedules = data.schedules.filter((s) => !(s.id === Number(id) && s.owner_email === owner_email));
+    data.schedule_exceptions = data.schedule_exceptions.filter((e) => !(e.schedule_id === Number(id) && e.owner_email === owner_email));
+    await save(data);
+  },
+
+  // Schedule Exceptions
+  async getExceptions(owner_email, schedule_id) {
+    const data = await load();
+    let e = data.schedule_exceptions.filter((e) => e.owner_email === owner_email);
+    if (schedule_id != null) e = e.filter((e) => e.schedule_id === Number(schedule_id));
+    return e;
+  },
+  async upsertException(owner_email, exception) {
+    const data = await load();
+    const idx = data.schedule_exceptions.findIndex(
+      (e) => e.schedule_id === Number(exception.schedule_id) && e.occurrence_date === exception.occurrence_date && e.owner_email === owner_email
+    );
+    if (idx !== -1) {
+      data.schedule_exceptions[idx] = { ...data.schedule_exceptions[idx], ...exception, owner_email };
+    } else {
+      data.schedule_exceptions.push({ ...exception, id: data.nextExceptionId++, owner_email });
+    }
+    await save(data);
+  },
+  async deleteException(owner_email, schedule_id, occurrence_date) {
+    const data = await load();
+    data.schedule_exceptions = data.schedule_exceptions.filter(
+      (e) => !(e.schedule_id === Number(schedule_id) && e.occurrence_date === occurrence_date && e.owner_email === owner_email)
+    );
+    await save(data);
+  },
+
+  // Events (unified one-time + recurring charges)
+  async getEvents(owner_email) {
+    const data = await load();
+    return data.events.filter((e) => e.owner_email === owner_email);
+  },
+  async addEvent(owner_email, event) {
+    const data = await load();
+    const e = { ...event, owner_email, id: data.nextEventId++ };
+    data.events.push(e);
+    await save(data);
+    return e;
+  },
+  async updateEvent(id, owner_email, updates) {
+    const data = await load();
+    const idx = data.events.findIndex((e) => e.id === Number(id) && e.owner_email === owner_email);
+    if (idx === -1) return null;
+    data.events[idx] = { ...data.events[idx], ...updates, id: Number(id), owner_email };
+    await save(data);
+    return data.events[idx];
+  },
+  async deleteEvent(id, owner_email) {
+    const data = await load();
+    data.events = data.events.filter((e) => !(e.id === Number(id) && e.owner_email === owner_email));
+    data.event_exceptions = data.event_exceptions.filter((e) => !(e.event_id === Number(id) && e.owner_email === owner_email));
+    await save(data);
+  },
+  async getEventExceptions(owner_email, event_id) {
+    const data = await load();
+    let excs = data.event_exceptions.filter((e) => e.owner_email === owner_email);
+    if (event_id != null) excs = excs.filter((e) => e.event_id === Number(event_id));
+    return excs;
+  },
+  async upsertEventException(owner_email, exc) {
+    const data = await load();
+    const idx = data.event_exceptions.findIndex(
+      (e) => e.event_id === Number(exc.event_id) && e.occurrence_date === exc.occurrence_date && e.owner_email === owner_email
+    );
+    if (idx !== -1) {
+      data.event_exceptions[idx] = { ...data.event_exceptions[idx], ...exc, owner_email };
+    } else {
+      data.event_exceptions.push({ ...exc, id: data.nextEventExceptionId++, owner_email });
+    }
+    await save(data);
+  },
+  async deleteEventException(owner_email, event_id, occurrence_date) {
+    const data = await load();
+    data.event_exceptions = data.event_exceptions.filter(
+      (e) => !(e.event_id === Number(event_id) && e.occurrence_date === occurrence_date && e.owner_email === owner_email)
+    );
+    await save(data);
   },
 
   // Profile

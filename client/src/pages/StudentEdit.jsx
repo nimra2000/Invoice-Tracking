@@ -11,6 +11,8 @@ export default function StudentEdit() {
   const [newEntry, setNewEntry] = useState({ date: today(), description: '', amount: '' });
   const [addingEntry, setAddingEntry] = useState(false);
   const [invoiceHistory, setInvoiceHistory] = useState([]);
+  const [balanceOpen, setBalanceOpen] = useState(true);
+  const [invoiceOpen, setInvoiceOpen] = useState(true);
 
   useEffect(() => {
     fetch(`/api/students/${id}`).then((r) => r.json()).then(setForm);
@@ -25,7 +27,7 @@ export default function StudentEdit() {
     await fetch(`/api/students/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, email: form.email }),
+      body: JSON.stringify({ name: form.name, email: form.email, billing_name: form.billing_name || '' }),
     });
     navigate('/');
   };
@@ -88,13 +90,23 @@ export default function StudentEdit() {
           <label>Email</label>
           <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} required />
         </div>
+        <div className="form-group">
+          <label>Billing Name <span style={{ fontWeight: 400, color: '#6b7280', fontSize: 13 }}>(optional — shown on invoice instead of student name)</span></label>
+          <input value={form.billing_name || ''} onChange={(e) => set('billing_name', e.target.value)} placeholder={form.name || 'e.g. Jane Smith (parent)'} />
+        </div>
       </form>
 
       {/* Balance Ledger */}
       <div style={{ marginTop: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>Balance History</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: balanceOpen ? 10 : 0 }}>
+          <button
+            onClick={() => setBalanceOpen((v) => !v)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontWeight: 700, fontSize: 16 }}>Balance History</span>
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>{balanceOpen ? '▲' : '▼'}</span>
+            </div>
             {entries.length > 0 && (
               <div style={{ fontSize: 13, color: outstanding === 0 ? '#15803d' : outstanding > 0 ? '#dc2626' : '#15803d', marginTop: 2 }}>
                 {outstanding === 0
@@ -104,13 +116,15 @@ export default function StudentEdit() {
                   : `Credit $${Math.abs(outstanding).toFixed(2)}`}
               </div>
             )}
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => setAddingEntry((v) => !v)}>
-            {addingEntry ? 'Cancel' : '+ Add Entry'}
           </button>
+          {balanceOpen && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setAddingEntry((v) => !v)}>
+              {addingEntry ? 'Cancel' : '+ Add Entry'}
+            </button>
+          )}
         </div>
 
-        {addingEntry && (
+        {balanceOpen && addingEntry && (
           <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: 14, marginBottom: 12 }}>
             <div className="form-group" style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 13 }}>Date</label>
@@ -143,11 +157,11 @@ export default function StudentEdit() {
           </div>
         )}
 
-        {entries.length === 0 && !addingEntry && (
-          <div style={{ color: '#9ca3af', fontSize: 14, padding: '12px 0' }}>No balance entries yet.</div>
+        {balanceOpen && entries.length === 0 && !addingEntry && (
+          <div style={{ color: '#9ca3af', fontSize: 14, padding: '12px 0' }}>Add a balance to be applied on the next invoice.</div>
         )}
 
-        {entries.map((e) => (
+        {balanceOpen && entries.map((e) => (
           <div
             key={e.id}
             style={{
@@ -196,8 +210,14 @@ export default function StudentEdit() {
       {/* Invoice History */}
       {invoiceHistory.length > 0 && (
         <div style={{ marginTop: 28 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Invoice History</div>
-          {invoiceHistory.map((inv) => {
+          <button
+            onClick={() => setInvoiceOpen((v) => !v)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: invoiceOpen ? 10 : 0 }}
+          >
+            <span style={{ fontWeight: 700, fontSize: 16 }}>Invoice History</span>
+            <span style={{ fontSize: 12, color: '#9ca3af' }}>{invoiceOpen ? '▲' : '▼'}</span>
+          </button>
+          {invoiceOpen && invoiceHistory.map((inv) => {
             const [year, mon] = inv.month.split('-');
             const label = new Date(year, mon - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
             const sentDate = new Date(inv.sent_at).toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -213,6 +233,7 @@ export default function StudentEdit() {
           })}
         </div>
       )}
+
 
       <button className="btn btn-primary" style={{ marginTop: 24 }} onClick={handleSubmit}>Save Changes</button>
       <button className="btn btn-danger" style={{ marginTop: 10 }} onClick={handleDelete}>
